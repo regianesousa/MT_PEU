@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 21 10:36:09 2014
+Arquivo que contém subrotinas genéricas para uso pelo MT_PEU.
 
 @author: Daniel
 """
@@ -9,40 +9,35 @@ from numpy import concatenate, size, arctan2, degrees, sqrt, copy, ones, array
 from numpy.linalg import eigh
 from os import path, makedirs
 
-from matplotlib.pyplot import gca
+from matplotlib.pyplot import figure, axes, axis, plot, errorbar, subplot, xlabel, ylabel,\
+    title, legend, savefig, xlim, ylim, close, grid, text, hist, boxplot, gca
+
 from matplotlib.patches import Ellipse
 
-#THREAD
-from Queue import Queue, Empty
-
-from scipy.stats import t
-
-
-
 def matriz2vetor(matriz):
-    u'''
+    u"""
     Subrotina para converter uma matriz (array com várias colunas) em um vetor (array com uma coluna)
     =======
     Entrada
     =======
     * ``matriz`` (array): matriz que se deseja converter para vetor
-    
+
     =====
     Saída
     =====
     * ``vetor`` (array): array com uma coluna
-    
+
     =======
     Exemplo
     =======
     Exemplo: ::
-        
+
         >>> from numpy import array, transpose
         >>> x1 = transpose(array([[1,2,3,4,5]]))
         >>> x2 = transpose(array([[6,7,8,9,10]]))
         >>> matriz  = concatenate((x1,x2),axis=1)
         >>> vetor   = matriz2vetor(matriz)
-    '''
+    """
     # Obtenção da primeira coluna da matriz    
     vetor = matriz[:,0:1]
     for i in xrange(1,size(matriz,1)):
@@ -53,7 +48,7 @@ def matriz2vetor(matriz):
 
 
 def vetor2matriz(vetor,NE):
-    u'''
+    u"""
     Subrotina para converter um vetor (array com uma coluna) em um vetor (array com uma coluna)
 
     =======
@@ -61,24 +56,24 @@ def vetor2matriz(vetor,NE):
     =======
     * ``vetor`` (array): vetor que se deseja converter para matriz
     * ``NE`` (float): quantidade de dados de cada coluna da matriz
-    
+
     =====
     Saída
     =====
-    
+
     * ``matriz`` (array): matriz convertida
-    
+
     =======
     Exemplo
     =======
     Exemplo: ::
-        
+
         >>> from numpy import array, transpose
         >>> x1 = transpose(array([[1,2,3,4,5]]))
         >>> x2 = transpose(array([[6,7,8,9,10]]))
         >>> vetor  = concatenate((x1,x2),axis=0)
         >>> matriz   = vetor2matriz(vetor,5)
-    '''
+    """
 
     pos_inicial = 0  # primeira linha da primeira coluna
     pos_final   = NE # última linha da primeira coluna 
@@ -119,9 +114,7 @@ def Coef_R2(residuo,yexp):
 
 def CovarianciaXY(matriz_cov_x,matriz_cov_y):
     matriz_cov_xy = concatenate((matriz_cov_x,matriz_cov_y))
-    
-    
-    
+
 def plot_cov_ellipse(cov, pos, c2=2, ax=None, **kwargs):
     """
     Plots an `nstd` sigma error ellipse based on the specified covariance
@@ -163,37 +156,36 @@ def plot_cov_ellipse(cov, pos, c2=2, ax=None, **kwargs):
     return (ellip, width, height, theta)
     
 def vetor_delta(entrada_vetor,posicao,delta):
-    
-    u'''
+    u"""
     Subrotina para alterar o(s) elementos de um vetor, acrescentando ou retirando um determinado ''delta''.
     =======
     Entrada
     =======
-    
+
     *``entrada_vetor´´(array, ndmi=1): Vetor ao qual a posição i e j ou apenas i será alterada.
     *``posicao´´(list ou float)= posição a ser repassada pela estrutura 'for'.
     *``delta´´(float): valor do incremento, proporcional a grandeza que será acrescida ou decrescida.
-    
-    
+
+
     =====
     Saída
     =====
     * ``vetor`` (array): array com uma linha.
-    
+
     =======
     Exemplo
     =======
     Exemplo: ::
-        
+
         >>>from numpy import array
         >>>from subrotinas import vetor_delta
-        
+
         >>> x1 =(array([1,2,3,4,5]))
-        
+
         print vetor_delta(x1,3,5)
-        
+
         >>> array([1, 2, 3, 9, 5])
-    '''
+    """
             
     vetor = copy(entrada_vetor)
 
@@ -206,9 +198,9 @@ def vetor_delta(entrada_vetor,posicao,delta):
     return vetor
 
 def matrizcorrelacao(matriz_covariancia):
-    u'''
+    u"""
     Calcula a matriz de correlação de determinada matriz covariância
-    '''
+    """
     if size(matriz_covariancia,0) != size(matriz_covariancia,1):
         raise ValueError(u'A matriz precisa ser quadrada para calcular a matriz dos coeficientes de correlação.')
     
@@ -226,159 +218,87 @@ def lista2matriz(lista):
         res = concatenate((res,aux),1)
     
     return res
-    
-def ThreadExceptionHandling(Thread,argumento1,argumento2,argumento3):
-    u'''
-    Subrotina para lidar com exceptions em Thread.
-    
+
+def graficos_x_y(X, Y, ix, iy, base_path, base_dir, info, ID_fluxo):
+    u"""
+    Subrotina para gerar gráficos das variáveis y em função de x
+
     =======
     Entrada
     =======
-    
-    * Thread: deve ser uma Thread com a seguinte estrutura [1]::
-        
-    >>> import threading
-    >>> import Queue
-    >>>
-    >>> class ExcThread(threading.Thread):
-    >>>
-    >>>     def __init__(self, bucket):
-    >>>         threading.Thread.__init__(self)
-    >>>         self.bucket = bucket
-    >>>
-    >>>     def run(self):
-    >>>         try:
-    >>>             raise Exception('An error occured here.')
-    >>>         except Exception:
-    >>>              self.bucket.put(sys.exc_info())        
-    
-    Referência:
-    
-    [1] http://stackoverflow.com/questions/2829329/catch-a-threads-exception-in-the-caller-thread-in-python
-    
-    '''
-    bucket = Queue()
-    thread_obj = Thread(argumento1,argumento2,argumento3,bucket=bucket)
-    thread_obj.start()
+    * X: objeto Grandeza contendo os dados a grandeza dependente
+    * Y: objeto Grandeza contendo os dados a grandeza independente
+    * ix: posição da variável que se deseja plotar
+    * iy: posição da variável que se deseja plotar em função de x[ix]
+    * info: atributo de Grandeza que se deseja plotar
 
-    while True:
-        try:
-            exc = bucket.get(block=False)
-        except Empty:
-            pass
-        else:
-            # Informações sobre o erro ocorrido:
-            exc_type, exc_obj, exc_trace = exc
+    * base_path: caminho base
+    * base_dir : diretório base
 
-            raise SyntaxError('Erro no modelo. Erro identificado "%s" no modelo.'%exc_obj)
-            
-        thread_obj.join(0.1)
-        if thread_obj.isAlive():
-            continue
-        else:
-            break
+    * ID_fluxo: número que indica o fluxo de trabalho
 
-class flag:
-    
-    def __init__(self):
-        u'''Classe para padronizar o uso de flags no motor de cálculo.
-        
-        =========
-        Atributos
-        =========
+    =======
+    Saídas
+    =======
+    * Gráfico de y em função de x sem incerteza
+    * Gráfico de y em função de x com incerteza
+    """
 
-        * **info**: dicionário que informa a situação atual das flags. As chaves são 'status' (TRUE ou FALSE) e 'descrição' (o que está ocorrendo)
-        
-        * **resumo**: apresenta um resumo completo de todas as possibilidades de status das flags e seus respectivos significados
-                    
-        =======
-        Métodos
-        =======
-        
-        * **ToggleActive(caracteristica)** : muda o status da caracteristica da flag para TRUE
-        * **ToggleInactive(caracteristica)**: muda o status da caracteristica da flag para FALSE
-        
-        É necessário informar característica que está sendo modificada. Características disponíveis: 'dadosvalidacao' e 'reconciliacao'.
-        '''               
-        # ---------------------------------------------------------------------
-        # VALIDAÇÃO
-        # ---------------------------------------------------------------------
-        self._caracteristicas_disponiveis = ['dadosexperimentais','dadosvalidacao','reconciliacao']
+    x  = eval('X.'+info+'.matriz_estimativa[:,ix]')
+    y  = eval('Y.'+info+'.matriz_estimativa[:,iy]')
+    ux = eval('X.'+info+'.matriz_incerteza[:,ix]')
+    uy = eval('Y.'+info+'.matriz_incerteza[:,iy]')
 
-        self.info = {}
-        for elemento in self._caracteristicas_disponiveis:
-            self.info[elemento] = False
-        
-    def __validacao(self,caracteristica):
-        u'''Validação das entradas
-        '''
-        # ---------------------------------------------------------------------
-        # VALIDAÇÃO
-        # ---------------------------------------------------------------------
-        if isinstance(caracteristica,str):
-            
-            if caracteristica not in self._caracteristicas_disponiveis:
-                raise NameError(u'A caracteristica "'+str(caracteristica)+'" não está disponível. Características disponíveis: '+', '.join(self._caracteristicas_disponiveis)+'.')
-        
-        elif isinstance(caracteristica,list):
-        
-            teste = [isinstance(elemento,str) for elemento in caracteristica]
-            
-            if False in teste:
-                raise TypeError('As características devem ser strings.')
-            
-            diferenca = set(caracteristica).difference(set(self._caracteristicas_disponiveis))
-            if len(diferenca) != 0:
-                raise NameError(u'Característica(s) indisponível(is): '+', '.join(diferenca) +'. Características disponíveis: '+', '.join(self._caracteristicas_disponiveis)+'.')
-                
-        else:            
-            raise TypeError(u'A caracteristica deve ser uma lista ou um string.')
-                    
-        # ---------------------------------------------------------------------
-        # AÇÃO
-        # ---------------------------------------------------------------------      
-        if not isinstance(caracteristica,list):
-            caracteristica = [caracteristica]
-         
-        self.__caracteristica = caracteristica
-        
-    def __Toggle(self):
-        u''' Método interno para realizar ação de mudança de status
-        
-        '''
-        for elemento in self.__caracteristica:
-            self.info[elemento]    = self.__togglestatus 
-    
-    def ToggleActive(self,caracteristica):
-        '''
-        Irá marcar a flag como TRUE
-        =======
-        Entrada
-        =======
-        
-        * característica (lista de strings ou string): o que a flag está indicando
-        '''
-        # ---------------------------------------------------------------------
-        # VALIDAÇÃO
-        # ---------------------------------------------------------------------         
-        self.__validacao(caracteristica)
+    #Gráfico apenas com os pontos experimentais
+    fig = figure()
+    ax = fig.add_subplot(1,1,1)
+    plot(x,y,'o')
+    # obtençao do tick do grafico
+    # eixo x+
+    label_tick_x   = ax.get_xticks().tolist()
+    tamanho_tick_x = (label_tick_x[1] - label_tick_x[0])/2
+    # eixo y
+    label_tick_y = ax.get_yticks().tolist()
+    tamanho_tick_y = (label_tick_y[1] - label_tick_y[0])/2
+    # Modificação do limite dos gráficos
+    xmin   = min(x) - tamanho_tick_x
+    xmax   = max(x) + tamanho_tick_x
+    ymin   = min(y) - tamanho_tick_y
+    ymax   = max(y) + tamanho_tick_y
+    xlim(xmin,xmax)
+    ylim(ymin,ymax)
+    # Labels
+    xlabel(X.labelGraficos(info)[ix],fontsize=20)
+    ylabel(Y.labelGraficos(info)[iy],fontsize=20)
+    #Grades
+    grid(b = 'on', which = 'major', axis = 'both')
+    fig.savefig(base_path+base_dir+info+'_fl'+str(ID_fluxo)+'_'+Y.simbolos[iy]+'_funcao_'+X.simbolos[ix]+'_sem_incerteza')
+    close()
 
-        self.__togglestatus = True
-        self.__Toggle()
-
-    def ToggleInactive(self,caracteristica):
-        '''
-        Irá marcar a flag como FALSE
-        =======
-        Entrada
-        =======
-        
-        * característica (lista de strings ou string): o que a flag está indicando
-        '''
-        # ---------------------------------------------------------------------
-        # VALIDAÇÃO
-        # ---------------------------------------------------------------------         
-        self.__validacao(caracteristica)
-
-        self.__togglestatus = False
-        self.__Toggle()
+    #Grafico com os pontos experimentais e as incertezas
+    fig = figure()
+    ax = fig.add_subplot(1,1,1)
+    xerr = 2*ux
+    yerr = 2*uy
+    errorbar(x,y,xerr=xerr,yerr=yerr,marker='o')
+    # obtençao do tick do grafico
+    # eixo x
+    label_tick_x   = ax.get_xticks().tolist()
+    tamanho_tick_x = (label_tick_x[1] - label_tick_x[0])/2
+    # eixo y
+    label_tick_y = ax.get_yticks().tolist()
+    tamanho_tick_y = (label_tick_y[1] - label_tick_y[0])/2
+    # Modificação dos limites dos gráficos
+    xmin  = min(x - xerr) - tamanho_tick_x
+    ymin  = min(y - yerr) - tamanho_tick_y
+    xmax  = max(x + xerr) + tamanho_tick_x
+    ymax  = max(y + yerr) + tamanho_tick_y
+    xlim(xmin,xmax)
+    ylim(ymin,ymax)
+    # Labels
+    xlabel(X.labelGraficos(info)[ix],fontsize=20)
+    ylabel(Y.labelGraficos(info)[iy],fontsize=20)
+    #Grades
+    grid(b = 'on', which = 'major', axis = 'both')
+    fig.savefig(base_path+base_dir+info+'_fl'+str(ID_fluxo)+'_'+Y.simbolos[iy]+'_funcao_'+X.simbolos[ix]+'_com_incerteza')
+    close()
