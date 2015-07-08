@@ -45,7 +45,7 @@ sys.setdefaultencoding("utf-8") # Forçar o sistema utilizar o coding utf-8
 from PSO.PSO import PSO   # Deve haver uma pasta com os códigos-fonte do PSO
 from Grandeza import Grandeza
 from subrotinas import Validacao_Diretorio, plot_cov_ellipse, vetor_delta,\
-    matriz2vetor, graficos_x_y
+    matriz2vetor, graficos_x_y, vetor2matriz
 from Relatorio import Relatorio
 from Flag import flag
 
@@ -343,13 +343,15 @@ class EstimacaoNaoLinear:
                     
         # Flags para controle
         self.__flag = flag()
-        self.__flag.setCaracteristica(['dadosexperimentais','dadosvalidacao','reconciliacao','graficootimizacao'])
-        # uso das caracterśiticas:
+        self.__flag.setCaracteristica(['dadosexperimentais','dadosvalidacao','reconciliacao','graficootimizacao','Uxx-predicao'])
+        # Uso das caracterśiticas:
         # dadosexperimentais: indicar se dadosexperimentais foram inseridos
         # dadosvalidacao: indicar se dadosvalidacao foram inseridos
         # reconciliacao: indicar se reconciliacao está sendo executada
         # graficootimizacao: indicar se na etapa de otimização são utilizados algoritmos de otimização que possuem
         # gráficos de desempenho
+        # Uxx-predicao: indicar se será utilizado a incerteza de x, na predição do y para dados de validação
+
     def __novoFluxo(self,reiniciar=False):
         u'''Método para criar um novo fluxo de informações.
         ===
@@ -476,7 +478,7 @@ class EstimacaoNaoLinear:
         # ---------------------------------------------------------------------
         # INCERTEZA DOS PARÂMETROS
         # --------------------------------------------------------------------- 
-        self.__metodosIncerteza = ['2InvHessiana','Geral','SensibilidadeModelo']
+        self.__metodosIncerteza = ['2InvHessiana','Geral'] # Método suspenso -> 'SensibilidadeModelo' - há a necessidade de duas matrizes S.
         if etapa == self.__etapasdisponiveis[3]:
             # se otimiza não tiver sido executado no contexto global ou SETparametro não tiver sido executado no contexto Global,
             # não se pode executar incertezaParametros
@@ -520,6 +522,10 @@ class EstimacaoNaoLinear:
             # para executar a predição deve ser executado otimiza (Global), incertezaParametros (Global), SETparametro(Global), incertezaParametros (Global)
             if ((self.__etapasdisponiveis[2] not in self.__etapasGlobal()) or (self.__etapasdisponiveis[3] not in self.__etapasGlobal())) and ((self.__etapasdisponiveis[8] not in self.__etapasGlobal()) or (self.__etapasdisponiveis[3] not in self.__etapasGlobal())):
                 raise SyntaxError('Para executar de predição, faz-se necessário primeiro executar o método {} seguido de {} OU {} seguido de {}. Outra opção é executar o método {}, definindo a matriz de covariância dos parâmetros.'.format(self.__etapasdisponiveis[2],self.__etapasdisponiveis[3],self.__etapasdisponiveis[8],self.__etapasdisponiveis[3],self.__etapasdisponiveis[8]))
+
+            # testando de uncx é booleando
+            if not isinstance(args,bool):
+                raise TypeError('O valor de uncx deve ser booleano: True ou False.')
 
         # ---------------------------------------------------------------------
         # SETparametro
@@ -995,7 +1001,7 @@ class EstimacaoNaoLinear:
         * PA         : probabilidade de abrangência para gerar a região de abrangência
         * delta      : incremento para o cálculo das derivadas (derivada numérica)
         * metodo_parametros (string): método para cálculo da matriz de covariãncia dos
-        parâmetros. Métodos disponíveis: 2InvHessiana, Geral, SensibilidadeModelo
+        parâmetros. Métodos disponíveis: 2InvHessiana, Geral, SensibilidadeModelo (SUSPENSO)
         
         ======
         Saídas
@@ -1028,8 +1034,8 @@ class EstimacaoNaoLinear:
             Gy  = self.__Matriz_Gy(delta)
 
             # Matriz de sensibilidade do modelo em relação aos parâmetros
-
-            S   = self.__Matriz_S(delta)
+            # TODO: suspenso para este método
+            # S   = self.__Matriz_S(delta)
 
             # ---------------------------------------------------------------------
             # AVALIAÇÃO DA INCERTEZA DOS PARÂMETROS
@@ -1044,9 +1050,10 @@ class EstimacaoNaoLinear:
             elif metodo == self.__metodosIncerteza[1]:
                 matriz_covariancia  = invHess.dot(Gy).dot(self.y.experimental.matriz_covariancia).dot(Gy.transpose()).dot(invHess)
 
+            # TODO: método suspenso, pois a matriz S nem sempre usa os dados experimentais.
             # Método: simplificado -> inv(trans(S)*inv(Uyy)*S)
-            elif metodo == self.__metodosIncerteza[2]:
-                matriz_covariancia = inv(S.transpose().dot(inv(self.y.experimental.matriz_covariancia)).dot(S))
+            # elif metodo == self.__metodosIncerteza[2]:
+            #    matriz_covariancia = inv(S.transpose().dot(inv(self.y.experimental.matriz_covariancia)).dot(S))
 
             # ---------------------------------------------------------------------
             # ATRIBUIÇÃO A GRANDEZA
@@ -1069,7 +1076,7 @@ class EstimacaoNaoLinear:
             self.parametros._SETparametro(self.parametros.estimativa,matriz_covariancia,regiao)
 
 
-    def predicao(self,delta=1e-5):
+    def predicao(self,delta=1e-5,uncx=False):
         u'''
         Método para realizar a predição.
         
@@ -1080,20 +1087,23 @@ class EstimacaoNaoLinear:
         É necessário executar a otimização ou incluir o valor para a estimativa dos parâmetros e sua incerteza, pelo \
         método ``SETparametro``.
 
-
         =======
         Entrada
         =======
         * delta: incremento a ser utilizado nas derivadas.        
-        
-        ========
-        Keywords
-        ========
+        * uncx: define de a incerteza de x será utilizada para avaliar a incerteza da predição para dados de validação
         '''
         # ---------------------------------------------------------------------
         # VALIDAÇÃO
         # ---------------------------------------------------------------------      
-        self.__validacaoArgumentosEntrada('Predicao',None)
+        self.__validacaoArgumentosEntrada('Predicao',None,uncx)
+
+        # ---------------------------------------------------------------------
+        # DEFININDO SE Uxx será considerado para dados de validação
+        # ---------------------------------------------------------------------
+
+        if uncx:
+            self.__flag.ToggleActive('Uxx-predicao')
 
         # ---------------------------------------------------------------------
         # AVALIAÇÃO DAS MATRIZES AUXILIARES
@@ -1113,7 +1123,10 @@ class EstimacaoNaoLinear:
         
         # Matriz de sensibilidade do modelo em relação aos parâmetros
         S   = self.__Matriz_S(delta) 
-          
+
+        # Matriz de sensibilidade do modelo em relação aos parâmetros
+        Sx = self.__Matriz_Sx(delta)
+
         # ---------------------------------------------------------------------
         # PREDIÇÃO
         # ---------------------------------------------------------------------
@@ -1130,12 +1143,16 @@ class EstimacaoNaoLinear:
         # Se os dados de validação forem diferentes dos experimentais, será desconsiderado
         # a covariância entre os parâmetros e dados experimentais
         if self.__flag.info['dadosvalidacao']:
-            # TODO: incluir a propagação de incerteza de x para y (com Sx)
-            Uyycalculado = S.dot(self.parametros.matriz_covariancia).dot(S.transpose()) + self.y.validacao.matriz_covariancia
+            # Define se Uxx é utilizado, ou não, na validação
+            if self.__flag.info['Uxx-predicao']:
+                Uyycalculado = S.dot(self.parametros.matriz_covariancia).dot(S.transpose())\
+                + Sx.dot(self.x.validacao.matriz_covariancia).dot(Sx.transpose()) + self.y.validacao.matriz_covariancia
+            else:
+                Uyycalculado = S.dot(self.parametros.matriz_covariancia).dot(S.transpose()) + self.y.validacao.matriz_covariancia
 
         else:
             # Neste caso, os dados de validação são os dados experimentais e será considerada
-            # a covariância entre os parâmetros e dados experimentais
+            # a covariância entre os parâmetros e dados experimentais. Além disso, é assumido Uxx<<Uyy
             # COVARIÃNCIA ENTRE PARÂMETROS E DADOS EXPERIMENTAIS
             Covar_param_y_experimental = -invHess.dot(Gy).dot(self.y.validacao.matriz_covariancia)
             # PRIMEIRA PARCELA
@@ -1354,22 +1371,53 @@ class EstimacaoNaoLinear:
     def __Matriz_Sx(self,delta=1e-5):
         u'''
         Método para calcular a matriz Sx(derivadas primeiras da função do modelo em relação as grandezas de entrada x).
-
         Método de derivada central de primeira ordem em relação aos parâmetros(considera os parâmetros como variáveis do modelo).
-
         ========
         Entradas
         ========
-
         * delta(float): valor do incremento relativo para o cálculo da derivada. Incremento relativo à ordem de grandeza do parâmetro.
-
         =====
         Saída
         =====
-
         Retorna a matriz Sx(array).
         '''
-        pass
+
+        matriz_Sx = ones((self.y.NV*self.y.validacao.NE,self.x.validacao.NE*self.x.NV))
+        vetor_x_valid = matriz2vetor(self.x.validacao.matriz_estimativa).transpose()[0]
+
+        for i in xrange(self.x.validacao.NE*self.x.NV):
+
+                # Incrementos para as derivadas dos parâmetros, tendo delta_alpha aplicados a qual parâmetro está ocorrendo a alteração\
+                #no vetor de parâmetros que é argumento da FO.
+
+                #OBS.: Se o valor do parâmetro for zero, aplica-se os valores de ''delta'' para delta_alpha, pois não existe log de zero, causando erro.
+                delta_x = (10**(floor(log10(abs(vetor_x_valid[i])))))*delta if vetor_x_valid[i] != 0 else delta
+
+                #Vetores alterados dos parâmetros para entrada na função do modelo
+                matriz_x_delta_i_positivo = vetor2matriz(array(vetor_delta(vetor_x_valid,i,delta_x),ndmin=2).transpose(),self.x.validacao.NE)
+                matriz_x_delta_i_negativo = vetor2matriz(array(vetor_delta(vetor_x_valid,i,-delta_x),ndmin=2).transpose(),self.x.validacao.NE)
+
+                #Valores para o modelo com os parâmetros acrescidos (matriz na foma de array).
+                ycalculado_deltax_positivo       = self.__modelo(self.parametros.estimativa,matriz_x_delta_i_positivo,\
+                                        [self.__args_model[4],self.x.simbolos,self.y.simbolos,self.parametros.simbolos])
+
+                ycalculado_deltax_positivo.start()
+
+                #Valores para o modelo com os parâmetros decrescidos (matriz na foma de array).
+                ycalculado_deltax_negativo       = self.__modelo(self.parametros.estimativa,matriz_x_delta_i_negativo,\
+                                        [self.__args_model[4],self.x.simbolos,self.y.simbolos,self.parametros.simbolos])
+
+                ycalculado_deltax_negativo.start()
+
+                # Método para fazer a função do modelo funcionar(start(), join(), .result).
+                ycalculado_deltax_positivo.join()
+                ycalculado_deltax_negativo.join()
+
+                # Fórmula de diferença finita de primeira ordem. Fonte bibliográfica bibliográfia:\
+                #(Gilat, Amos; MATLAB Com Aplicação em Engenharia, 2a ed, Bookman, 2006.) Pág. 256.
+                matriz_Sx[:,i:i+1] =  (matriz2vetor(ycalculado_deltax_positivo.result) - matriz2vetor(ycalculado_deltax_negativo.result))/(2*delta_x)
+
+        return matriz_Sx
 
     def __Matriz_S(self,delta=1e-5):
         u'''
@@ -1389,7 +1437,7 @@ class EstimacaoNaoLinear:
         
         Retorna a matriz S(array).
         '''
-        
+        # TODO: incluir mais uma entrada, a matriz X.
         #Criação de matriz de ones com dimenção:(número de Y*NE X número de parâmetros) a\
         #qual terá seus elementos substituidos pelo resultado da derivada das  função em relação aos\
         #parâmetros i de acordo o seguinte ''for''.
